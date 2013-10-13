@@ -261,6 +261,11 @@ event hardware_adc_result(input, value)
     if  v = 255 then
         v = 0
     end if
+    
+    if input = 0 then
+        xdebug1(0:1) = v
+        call attributes_write(debug1, 0, 8, xdebug1(0:8))
+    end if
 
     if input = 1 then
         xdebug1(1:1) = v
@@ -269,6 +274,11 @@ event hardware_adc_result(input, value)
 
     if input = 2 then
         xdebug1(2:1) = v
+        call attributes_write(debug1, 0, 8, xdebug1(0:8))
+    end if
+    
+    if input = 3 then
+        xdebug1(3:1) = v
         call attributes_write(debug1, 0, 8, xdebug1(0:8))
     end if
 
