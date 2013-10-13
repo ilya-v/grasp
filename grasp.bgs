@@ -63,43 +63,6 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw )
     end if
     call attributes_write(scan_mask, 0, len, ps_scan_mask(0:len))    # copy the scan mask settings to the attribute, which is defined in gatt.xml
 
-    len = 9
-    call flash_ps_load($8002)(result, len, ps_low_threshold(0:9))    # load lower thresolds for scanning.
-    data_init_flag = ps_low_threshold(8:1)
-    if data_init_flag != 255  then
-        ps_low_threshold(0:1) = 0
-        ps_low_threshold(1:1) = 0
-        ps_low_threshold(2:1) = 0
-        ps_low_threshold(3:1) = 0
-        ps_low_threshold(4:1) = 0
-        ps_low_threshold(5:1) = 0
-        ps_low_threshold(6:1) = 0
-        ps_low_threshold(7:1) = 0
-        ps_low_threshold(8:1) = 255
-        len = 9
-        call flash_ps_save($8002, len, ps_high_threshold(0:len))
-    end if
-    call attributes_write(ain_low_threshold, 0, len, ps_low_threshold(0:len))
-
-    len = 9
-    call flash_ps_load($8003)(result, len, ps_high_threshold(0:9))
-    data_init_flag = ps_high_threshold(8:1)
-    if data_init_flag != 255  then
-        ps_high_threshold(0:1) = 80
-        ps_high_threshold(1:1) = 80
-        ps_high_threshold(2:1) = 80
-        ps_high_threshold(3:1) = 80
-        ps_high_threshold(4:1) = 80
-        ps_high_threshold(5:1) = 80
-        ps_high_threshold(6:1) = 80
-        ps_high_threshold(7:1) = 80
-        ps_high_threshold(8:1) = 255
-        len = 9
-        call flash_ps_save($8003, len, ps_high_threshold(0:len))
-    end if
-    call attributes_write(ain_high_threshold, 0, len, ps_high_threshold(0:len))
-
-
     call hardware_set_soft_timer(2048,0,0)                           # set a timer with handle 0, repeating each 2048/32000 = 0.064 sec
 end
 
@@ -134,19 +97,6 @@ event attributes_value(connection, reason, handle, offset, value_len, data)
         len = 6
         call flash_ps_load($8001)(result, len, ps_scan_mask(0:6))
     end if
-
-    if handle = ain_low_threshold then
-        call flash_ps_save($8002, value_len, data(0:value_len))
-        len = 9
-        call flash_ps_load($8002)(result, len, ps_low_threshold(0:9))
-    end if
-
-    if handle = ain_high_threshold then
-        call flash_ps_save($8003, value_len, data(0:value_len))
-        len = 9
-        call flash_ps_load($8003)(result, len, ps_high_threshold(0:9))
-    end if
-
 end
 
 
@@ -192,7 +142,7 @@ event hardware_soft_timer(handle)
 
         # scan port 0
         i = 0
-        while i < 8
+        while i < 8                                                  # loop over active, output pins used in the scan
             p = (1 << i) & p0_scan_pins                              # p is the scan mask, with one bit set at the needed postiion
             if 0 != p  then                                          # the scan is only done if p0_scan_pins has the same bit set
                 cur_scan_levels = (($FF ^ p0_scan_levels) & p0_scan_pins) | (p & p0_scan_levels)
@@ -202,10 +152,10 @@ event hardware_soft_timer(handle)
                 #set the required levels on pins
 
                 j = 0
-                while j < 8
+                while j < 8                                          # ADC loop over passive pins in P0
                   q = (1 << j) & p0_adc_read_pins
                   if q != 0  then
-                      call hardware_adc_read(j, 3, 2)
+                      call hardware_adc_read(j, 3, 2)                # measure voltage on pin P0.j, get 12 bits of data, use VDD pin as a reference
                       scan_counter = scan_counter + 1
                   end if
                   j = j + 1
@@ -216,31 +166,6 @@ event hardware_soft_timer(handle)
         end while
         cur_scan_levels = ($FF ^ p0_scan_levels) & p0_scan_pins
         call hardware_io_port_write (0, p0_scan_pins, cur_scan_levels)
-
-
-        i = 0
-        while i < 8
-            p = (1 << i) & p1_scan_pins
-            if 0 != p  then
-                cur_scan_levels = (($FF ^ p1_scan_levels) & p1_scan_pins) | (p & p1_scan_levels)
-                call hardware_io_port_write (1, p1_scan_pins, cur_scan_levels)
-
-                j = 0
-                while j < 8
-                  q = (1 << j) & p0_adc_read_pins
-                  if q != 0  then
-                      call hardware_adc_read(j, 3, 2)
-                      scan_counter = scan_counter + 1
-                  end if
-                  j = j + 1
-                end while
-
-            end if
-            i = i + 1
-        end while
-        cur_scan_levels = ($FF ^ p1_scan_levels) & p1_scan_pins
-        call hardware_io_port_write (1, p1_scan_pins, cur_scan_levels)
-
     end if
 
 end
@@ -249,11 +174,7 @@ end
 
 dim v
 
-dim low_threshold
-dim high_threshold
-
-dim status_word(2)
-
+dim scan_result_arr(8)
 
 event hardware_adc_result(input, value)
 
@@ -262,64 +183,13 @@ event hardware_adc_result(input, value)
         v = 0
     end if
     
-    if input = 0 then
-        xdebug1(0:1) = v
-        call attributes_write(debug1, 0, 8, xdebug1(0:8))
-    end if
-
-    if input = 1 then
-        xdebug1(1:1) = v
-        call attributes_write(debug1, 0, 8, xdebug1(0:8))
-    end if
-
-    if input = 2 then
-        xdebug1(2:1) = v
-        call attributes_write(debug1, 0, 8, xdebug1(0:8))
-    end if
+    scan_result_arr (scan_res_index:1) = v
     
-    if input = 3 then
-        xdebug1(3:1) = v
-        call attributes_write(debug1, 0, 8, xdebug1(0:8))
-    end if
-
-    if input = 4 then
-        xdebug1(4:1) = v
-        call attributes_write(debug1, 0, 8, xdebug1(0:8))
-    end if
-
-    if input = 5 then
-        xdebug1(5:1) = v
-        call attributes_write(debug1, 0, 8, xdebug1(0:8))
-    end if
-
-
     if scan_counter > 0 then
-
-        low_threshold = ps_low_threshold(scan_res_index:1)
-        high_threshold = ps_high_threshold(scan_res_index:1)
-
-        xdebug2(scan_res_index:1) = low_threshold
-        call attributes_write(debug2, 0, 8, xdebug2(0:8))
-
-
-        if v > high_threshold then
-            scan_status_high = scan_status_high | (1 << scan_res_index)
-        end if
-
-        if v < low_threshold then
-            scan_status_low = scan_status_low | (1 << scan_res_index)
-        end if
-
         scan_res_index = scan_res_index + 1
         if scan_counter = scan_res_index then
-
-            if (scan_status_high > 0) || (scan_status_low > 0) then
-                status_word(0:1) = scan_status_high
-                status_word(1:1) = scan_status_low
-                # write the scan result into the attribute 'ain_triggers'
-                call attributes_write(ain_triggers, 0, 2, status_word(0:2))
-            end if
-
+                call attributes_write(scan_result, 0, 8, scan_result_arr(0:8))
+                scan_result_arr(0:8) = 0
         end if
     end if
 

@@ -15,7 +15,7 @@
       </characteristic>
     </service>
 
-    
+
     <service uuid="e001">
        <description>Battery status</description>
        <characteristic uuid="e101" id="xgatt_battery">
@@ -23,13 +23,13 @@
           <value type="hex">0000</value>
       </characteristic>
     </service>
-    
-    
+
+
     <service uuid="a58fcfae-db61-11e2-b9b0-f23c91aec05a" advertise="true">
-    
+
         <!-- Define pin usage for pins P0.0...P0.7, P1.0, P1.7.
             byte 0:  P0 direction mask (0 = input vs 1 = output)
-            byte 1:  P1 direction mask (0 = input vs 1 = output)            
+            byte 1:  P1 direction mask (0 = input vs 1 = output)
             byte 2:  P0 tristate mask  (0 = pull resistor connected; 1 - no pull resistor)
             byte 3:  P0 pull settings  (1 - all pin pulled up, 0 - all down)
             byte 4:  P1 tristate mask  (0 = pull resistor connected; 1 - no pull resistor)
@@ -37,14 +37,14 @@
             byte 6:  P0 pins to set, a mask
             byte 7:  P0 level for masked pins
             byte 8:  P1 pins to set, a mask
-            byte 9:  P1 level for masked pins                        
+            byte 9:  P1 level for masked pins
         -->
         <description> Pin Config </description>
         <characteristic uuid="1e7283aa-db61-11e2-b9b0-f23c91aec051" id="pin_config">
             <properties read="true" write="true"/>
             <value type="hex" length="11"></value> <!-- No default value is set. Initialized in the code. -->
-        </characteristic>    
-        
+        </characteristic>
+
         <!-- Scan Mask - the scan parameters
             byte 0: P0 mask defining which pins of P0 are used during the scan
             byte 1: P0 pin values that are used then the pin is activated during the scan
@@ -52,56 +52,18 @@
             byte 3: P1 pin values that are used then the pin is activated during the scan
             byte 4: P0 mask defining on which bits the resulting ADC level is measured
         -->
-        <description> Scan Mask </description>        
+        <description> Scan Mask </description>
         <characteristic uuid="2c9bf69f-9b01-4ec2-986e-625c6cd2f6b2" id="scan_mask">
             <properties read="true" write="true"/>
             <value type="hex" length="6"></value>
-        </characteristic>    
-        
-        
-    
-    
-        <!-- AIN Pins status info.
-             8 lower bits store the status of 8 scan results compared to higher threshold
-             8 higher bits store the status of 8 scan results compared to lower threshold             
-        -->
-        <description> AIN Pins status info</description>
-        <characteristic uuid="3322f24a-db73-11e2-b9b0-f23c91aec053" id="ain_triggers">
-            <properties read="true" notify="true"/>
-            <value type="hex" length="2">0000</value>
-        </characteristic>
-        
-        
-        <!-- AIN Pins lower threshold values.
-             8 bits per pin for 8 AIN pins. Used in scan order.
-        -->
-        <characteristic uuid="4347aca4-db62-11e2-b9b0-f23c91aec054" id="ain_low_threshold">
-        <description> Low Threshold </description>        
-            <properties read="true" write="true"/>
-            <value type="hex" length="9"></value>
         </characteristic>
 
-        <!-- AIN Pins upper threshold values.
-             8 bits per pin for 8 AIN pins. Used in scan order.
-        -->
-        <characteristic uuid="5b118a08-db63-11e2-b9b0-f23c91aec055" id="ain_high_threshold">
-        <description> High Threshold </description>        
-            <properties read="true" write="true"/>
-            <value type="hex" length="9"></value>
+
+        <description> Scan Result </description>
+        <characteristic uuid="3322f24a-db73-11e2-b9b0-f23c91aec053" id="scan_result">
+            <properties read="true" notify="true"/>
+            <value type="hex" length="8">0000000000000000</value>
         </characteristic>
-        
-        <characteristic uuid="d1398466-6d9e-4d29-a59d-89a7252b18d1" id="debug1">
-        <description> Debug1 </description>        
-            <properties read="true"/>
-            <value type="hex" length="8"></value>
-        </characteristic>
-        
-        <characteristic uuid="d2398466-6d9e-4d29-a59d-89a7252b18d2" id="debug2">
-        <description> Debug2 </description>        
-            <properties read="true"/>
-            <value type="hex" length="8"></value>
-        </characteristic>        
-        
-        
+
     </service>
 </configuration>
