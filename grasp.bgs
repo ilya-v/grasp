@@ -66,7 +66,7 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw )
     call hardware_set_soft_timer(2048,0,0)                           # set a timer with handle 0, repeating each 2048/32000 = 0.064 sec
 end
 
-event connection_disconnected(handle,result)
+event connection_disconnected(handle,res)
     call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
 end
 
