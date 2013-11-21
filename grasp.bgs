@@ -18,15 +18,15 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw )
     data_init_flag = ps_pin_config(10:1)                             # byte ($8000 + 10) stores the initialization flag
     if data_init_flag != 255  then                                   # the magic value of 255 is assigned to the flag when the data record is initialized
                                                                      # initializing non-initialized record with default values
-        ps_pin_config(0:1) = 8                                       # P0 direction bit mask: 0 -- input, 1 -- output
+        ps_pin_config(0:1) = 32                                      # P0 direction bit mask: 0 -- input, 1 -- output
         ps_pin_config(1:1) = 0                                       # P1 direction bit mask: 0 -- input, 1 -- output
-        ps_pin_config(2:1) = 0                                       # P0 pull mask: 0 -- pull resistor connected, 1 -- pull resistor disconnected
-        ps_pin_config(3:1) = 0                                       # P0 pull settings: 1 -- all pins pulled up, 0 -- all pins pulled down
-        ps_pin_config(4:1) = 255                                     # P1 pull mask: 0 -- pull resistor connected, 1 -- pull resistor disconnected
+        ps_pin_config(2:1) = 32                                       # P0 pull mask: 0 -- pull resistor connected, 1 -- pull resistor disconnected
+        ps_pin_config(3:1) = 1                                       # P0 pull settings: 1 -- all pins pulled up, 0 -- all pins pulled down
+        ps_pin_config(4:1) = 0                                       # P1 pull mask: 0 -- pull resistor connected, 1 -- pull resistor disconnected
         ps_pin_config(5:1) = 0                                       # P1 pull settings: 1 -- all pins pulled up, 0 -- all pins pulled down
-        ps_pin_config(6:1) = 255                                     # P0 pins to set to some level, a mask
+        ps_pin_config(6:1) = 1+16                                       # P0 pins to set to some level, a mask
         ps_pin_config(7:1) = 0                                       # logical levels of P0 pins, a mask
-        ps_pin_config(8:1) = 255                                     # P1 pins to set to some level, a mask
+        ps_pin_config(8:1) = 0                                     # P1 pins to set to some level, a mask
         ps_pin_config(9:1) = 0                                       # logical levels of P1 pins, a mask
         ps_pin_config(10:1) = 255                                    # the magic value of 255 is assigned to mark the ps_pin_config structure as initialized
         len = 11
@@ -52,11 +52,11 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw )
     data_init_flag = ps_scan_mask(5:1)                               # byte ($8001 + 5) stores the initialization flag for sthe can mask record
     if data_init_flag != 255  then                                   # the magic value of 255 is assigned to the flag when the data record is initialized
                                                                      # initializing scan mask with default values, ifvnot initialized
-        ps_scan_mask(0:1) = 8                                        # byte 0: which bits of P0 are used (toggled) during the scan
-        ps_scan_mask(1:1) = 8                                        # byte 1: what are the levels on each used pin when it is activated during the scan
+        ps_scan_mask(0:1) = 32                                  # byte 0: which bits of P0 are used (toggled) during the scan
+        ps_scan_mask(1:1) = 0                                  # byte 1: what are the levels on each used pin when it is activated during the scan
         ps_scan_mask(2:1) = 0                                        # byte 2: which bits of P1 are used (toggled) during the scan
         ps_scan_mask(3:1) = 0                                        # byte 3: what are the levels on each used pin when it is activated during the scan
-        ps_scan_mask(4:1) = 1 + 2 + 4 + 16 + 32                      # byte 4: which pins of P0 are used to measure voltage level on them using ADC
+        ps_scan_mask(4:1) = 1 + 2 + 4 + 8  + 16                       # byte 4: which pins of P0 are used to measure voltage level on them using ADC
         ps_scan_mask(5:1) = 255                                      # byte 5: setting the data initialization flag to the magic value
         len = 6
         call flash_ps_save($8001, 6, ps_scan_mask(0:6))              # save the default value of the scan mask
@@ -106,8 +106,6 @@ end
 dim cur_scan_levels
 dim p0_scan_pins
 dim p0_scan_levels
-dim p1_scan_pins
-dim p1_scan_levels
 dim p0_adc_read_pins
 
 dim i
@@ -130,8 +128,6 @@ event hardware_soft_timer(handle)
     if handle = 0 then
         p0_scan_pins   = ps_scan_mask(0:1)
         p0_scan_levels = ps_scan_mask(1:1)
-        p1_scan_pins   = ps_scan_mask(2:1)
-        p1_scan_levels = ps_scan_mask(3:1)
 
         p0_adc_read_pins = ps_scan_mask(4:1)
 
@@ -179,7 +175,7 @@ dim scan_result_arr(8)
 event hardware_adc_result(input, value)
 
     v = value / 256
-    if  v = 255 then
+    if  v > 128 then
         v = 0
     end if
     
