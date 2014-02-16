@@ -216,5 +216,6 @@ pip-log.txt
 
 variable_memory_usage.txt
 hex.out
-
+attributes.txt
+out.hex
 
