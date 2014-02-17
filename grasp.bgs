@@ -19,6 +19,8 @@ dim adc_read_pins
 dim scan_index
 dim scan_pins(6)
 
+dim Vout
+
 event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw)
 
     X0 = 1
@@ -30,32 +32,39 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw)
     X6 = 64
     X7 = 128
     Xsens= X0 + X1 + X2 + X3 + X4
-    
+
     output_pins     = 0
     adc_read_pins   = X5
 
     pins_to_set     = Xsens
     levels_to_set   = 0
-    
-       
+
+    Vout = 0
+
+
     call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
     call sm_set_bondable_mode(1)
-       
-    
-    call hardware_io_port_config_function  (0, 0)                    # Configure Port 0 pins as general purpose IO pins           
+
+
+    call hardware_io_port_config_function  (0, 0)                    # Configure Port 0 pins as general purpose IO pins
     call hardware_io_port_config_function  (1, 0)                    # Configure Port 1 pins as general purpose IO pins
-    
+
 
     call hardware_io_port_config_direction (0, 0)   #which pins are output
     call hardware_io_port_config_pull      (0, Xsens + X5 + X7, 1)  # which pins do not have a pull resistor; pull-up(1) or pull-down(0) for other pins
     call hardware_io_port_write            (0, Xsens, 0)  #pins to set; logical levels to set
-    
-    call hardware_io_port_config_direction (1, 0)   # apply ps_pin_config settings to the Port 1: input-output direction setting    
-    call hardware_io_port_config_pull      (1, 255, 0)  # apply ps_pin_config serttings to the Port 1: the pull resistor   
-    call hardware_io_port_write            (1, 255, 0)  # apply ps_pin_config serttings to the Port 1: logical levels on pins
 
-    call hardware_set_soft_timer(2048,0,0)                           # set a timer with handle 0, repeating each 2048/32000 = 0.064 sec
-  
+    call hardware_io_port_config_direction (1, 0)       # apply ps_pin_config settings to the Port 1: input-output direction setting
+    call hardware_io_port_config_pull      (1, 0, 0)    # apply ps_pin_config settings to the Port 1: the pull resistor
+    #call hardware_io_port_write            (1, 255, 0)  # apply ps_pin_config settings to the Port 1: logical levels on pins
+
+    call hardware_set_soft_timer(32000,0,0)                           # set a timer with handle 0, single shot = 0, repeating each 32000/32000 = 1 sec
+
+
+    call hardware_io_port_config_direction (1, X7)      # apply ps_pin_config settings to the Port 1: input-output direction setting
+    call hardware_io_port_config_pull      (1, 0, 0)    # apply ps_pin_config settings to the Port 1: the pull resistor
+    call hardware_io_port_write            (1, X7, X7)  # apply ps_pin_config settings to the Port 1: logical levels on pins
+
 
     scan_pins(0:1)  =  X0
     scan_pins(1:1)  =  X1
@@ -63,15 +72,30 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw)
     scan_pins(3:1)  =  X3
     scan_pins(4:1)  =  X4
     scan_pins(5:1)  =  X0   #should be the same as scan_pins(0)
-  
-    scan_index = 0
-    call hardware_io_port_config_direction (0, scan_pins(scan_index))
-    call hardware_io_port_write            (0, Xsens, 0)
-    call hardware_adc_read(5, 3, 1)   #ADC reads pin P0.5; with 12 effective bits; the voltage on P0.5 is measured versus P0.7 pin reference voltage
+
 end
 
 event connection_disconnected(handle,res)
     call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
+end
+
+
+dim read_res
+dim read_port
+dim read_data
+
+dim awake_counter
+event hardware_soft_timer(handle)
+    call hardware_io_port_read             (1, X6)(read_res, read_port, read_data)
+    if read_data > 0 then
+        scan_index = 0
+        call hardware_io_port_config_direction (0, scan_pins(scan_index))
+        call hardware_io_port_write            (0, Xsens, 0)
+        call hardware_adc_read(5, 3, 1)   #ADC reads pin P0.5; with 12 effective bits; the voltage on P0.5 is measured versus P0.7 pin reference voltage
+
+        awake_counter = 0
+        call hardware_set_soft_timer(0,0,0)
+    end if
 end
 
 
@@ -83,19 +107,25 @@ event hardware_adc_result(input, value)
 
     call hardware_io_port_config_direction (0, scan_pins(scan_index + 1))
     call hardware_io_port_write            (0, Xsens, 0)
-    call hardware_adc_read(5, 3, 1)   #ADC reads pin P0.5; with 12 effective bits; the voltage on P0.5 is measured versus P0.7 pin reference voltage
+
+    call hardware_io_port_read             (1, X6)(read_res, read_port, read_data)
+    if awake_counter < 600 || read_data = 0 then
+        call hardware_adc_read(5, 3, 1)   #ADC reads pin P0.5; with 12 effective bits; the voltage on P0.5 is measured versus P0.7 pin reference voltage
+        awake_counter = awake_counter + 1
+    else
+        call hardware_set_soft_timer(32000,0,0)
+    end if
+
 
     v = value / 256
     if  v > 128 then
         v = 0
     end if
-    
+
     scan_result_arr (scan_index:1) = v
     scan_index = scan_index + 1
     if scan_index > 4 then
         call attributes_write(scan_result, 0, 8, scan_result_arr(0:8))
         scan_index = 0
     end if
-    
-
 end
