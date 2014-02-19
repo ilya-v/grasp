@@ -36,10 +36,9 @@ event system_boot(major ,minor ,patch ,build ,ll_version ,protocol_version, hw)
 
     pins_to_set     = Xsens
     levels_to_set   = 0
-
-    call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
-    call sm_set_bondable_mode(1)
-
+    
+    call gap_set_mode(0,0)
+    call sm_set_bondable_mode(0)   
 
     call hardware_io_port_config_function  (0, 0)                    # Configure Port 0 pins as general purpose IO pins
     call hardware_io_port_config_function  (1, 0)                    # Configure Port 1 pins as general purpose IO pins
@@ -80,6 +79,11 @@ event hardware_soft_timer(handle)
 
     call hardware_io_port_read             (1, X6)(read_res, read_port, read_data)
     if read_data > 0 then
+        # wake up
+        
+        call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
+        call sm_set_bondable_mode(1)
+        
         scan_index = 0
         call hardware_io_port_config_direction (0, scan_pins(scan_index))
         call hardware_io_port_config_pull      (0, Xsens + X5 + X7, 1)  # which pins do not have a pull resistor; pull-up(1) or pull-down(0) for other pins
@@ -102,9 +106,13 @@ event hardware_adc_result(input, value)
     call hardware_io_port_read             (1, X6)(read_res, read_port, read_data)
     
     if awake_counter < 500 || read_data = 0 then
+        # stay awake, read ADC
         call hardware_adc_read(5, 3, 1)   #ADC reads pin P0.5; with 12 effective bits; the voltage on P0.5 is measured versus P0.7 pin reference voltage
         awake_counter = awake_counter + (awake_counter < 500)
     else
+        call gap_set_mode(0,0)
+        call sm_set_bondable_mode(0)
+        # schedule a timer and go to sleep
         call hardware_set_soft_timer(32000,0,0)
         call hardware_io_port_config_direction (0, 0)   #which pins are output
         call hardware_io_port_config_pull      (0, 0, 0)  # which pins do not have a pull resistor; pull-up(1) or pull-down(0) for other pins
