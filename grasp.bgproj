@@ -5,5 +5,5 @@
     <script in="grasp.bgs" />
     <usb_main in="cdc.xml" />
     <image out="out.hex" />    
-    <device type="ble113" />	
+    <device type="ble113" memory="256">
 </project>
